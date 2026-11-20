@@ -4,6 +4,8 @@ import { CartItem } from '../types/cart';
 import { Order } from '../types/store';
 import { STORE_INFO, formatUsd, formatKhr } from '../data/products';
 import { AbaKhqrCard } from './AbaKhqrCard';
+import { auth } from '../lib/firebase';
+import { saveOrderInFirestore } from '../lib/storeFirestore';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -106,6 +108,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'ការបញ្ជាទិញមានបញ្ហា សូមព្យាយាមម្តងទៀត');
+      }
+
+      if (auth.currentUser?.emailVerified) {
+        try {
+          await saveOrderInFirestore(data.order, auth.currentUser.uid);
+        } catch (fsErr) {
+          console.warn('Firestore order sync warning:', fsErr);
+        }
       }
 
       setCompletedOrder(data.order);

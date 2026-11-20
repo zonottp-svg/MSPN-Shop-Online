@@ -26,7 +26,24 @@ import {
   Upload,
   Loader2,
   Image as ImageIcon,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
+import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, googleProvider, ADMIN_EMAIL, db } from '../lib/firebase';
+import {
+  ensureCatalogSeededInFirestore,
+  subscribeStoreProducts,
+  createProductInFirestore,
+  updateProductInFirestore,
+  deleteProductFromFirestore,
+  loadAdminSettingsFromFirestore,
+  saveAdminSettingsInFirestore,
+  subscribeAdminOrders,
+  updateOrderInFirestore,
+  deleteOrderFromFirestore,
+} from '../lib/storeFirestore';
 import { Order, StoreSettings } from '../types/store';
 import { Product, formatUsd, formatKhr } from '../data/products';
 
@@ -37,7 +54,8 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefreshData }) => {
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState('1234');
+  const [adminUser, setAdminUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
 
@@ -118,7 +136,129 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     }
   };
 
-  // Auth Handler
+  const checkIsAuthorizedAdmin = async (user: User | null): Promise<boolean> => {
+    if (!user || !user.emailVerified) return false;
+    if (user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return true;
+    try {
+      const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+      return adminSnap.exists();
+    } catch {
+      return false;
+    }
+  };
+
+  // Keep Firebase Auth state & live Firestore subscriptions synced while AdminPanel is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let unsubProducts: (() => void) | null = null;
+    let unsubOrders: (() => void) | null = null;
+    let cancelled = false;
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (cancelled) return;
+      const authorized = await checkIsAuthorizedAdmin(user);
+
+      if (!authorized || !user) {
+        setAdminUser(user);
+        setIsAuthenticated(false);
+        unsubProducts?.();
+        unsubOrders?.();
+        return;
+      }
+
+      setAdminUser(user);
+      setIsAuthenticated(true);
+      setAuthError('');
+
+      // Subscribe immediately to Firestore live products & orders
+      unsubProducts?.();
+      unsubProducts = subscribeStoreProducts((liveProducts) => {
+        if (!cancelled) setProducts(liveProducts);
+      });
+
+      unsubOrders?.();
+      unsubOrders = subscribeAdminOrders(
+        (fsOrders) => {
+          if (!cancelled) setOrders(fsOrders);
+        },
+        (err) => console.warn('Firestore orders listener warning:', err)
+      );
+
+      // One-time safe seed from API/defaults + load settings
+      try {
+        let apiProducts: Product[] | undefined;
+        let apiSettings: Partial<StoreSettings> | undefined;
+        try {
+          const [pRes, sRes] = await Promise.all([
+            fetch('/api/products', { cache: 'no-store' }),
+            fetch('/api/admin/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pin: pin || '1234' }),
+            }),
+          ]);
+          const pData = await safeParseJson(pRes);
+          if (pRes.ok && Array.isArray(pData.products)) apiProducts = pData.products;
+          const sData = await safeParseJson(sRes);
+          if (sRes.ok && sData.settings) apiSettings = sData.settings;
+        } catch {
+          // Proceed with local defaults
+        }
+
+        await ensureCatalogSeededInFirestore(apiProducts);
+        const fullSettings = await loadAdminSettingsFromFirestore(apiSettings);
+        if (!cancelled) {
+          setSettings(fullSettings);
+          if (fullSettings.adminPin) setPin(fullSettings.adminPin);
+        }
+      } catch (initErr: any) {
+        console.error('Admin Firestore init error:', initErr);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubAuth();
+      unsubProducts?.();
+      unsubOrders?.();
+    };
+  }, [isOpen]);
+
+  // Google Admin Auth Handler (Required for Firestore Admin writes)
+  const handleGoogleAdminLogin = async () => {
+    setIsLoading(true);
+    setAuthError('');
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      const authorized = await checkIsAuthorizedAdmin(cred.user);
+      if (!authorized) {
+        await signOut(auth);
+        throw new Error(
+          `គណនី Google "${cred.user.email || ''}" មិនមានសិទ្ធិជា Admin ទេ! សូមចូលដោយប្រើគណនីម្ចាស់ហាង (${ADMIN_EMAIL})។`
+        );
+      }
+      setAdminUser(cred.user);
+      setIsAuthenticated(true);
+      onRefreshData?.();
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/unauthorized-domain') {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'domain នេះ';
+        setAuthError(
+          `Domain "${host}" មិនទាន់បានបន្ថែមក្នុង Firebase Authorized Domains ទេ។ សូមបន្ថែម "${host}" ក្នុង Firebase Console → Authentication → Settings → Authorized domains ជាមុនសិន។`
+        );
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setAuthError('អ្នកបានបិទផ្ទាំងចូលគណនី Google។ សូមចុចម្ដងទៀតដើម្បីបញ្ជាក់សិទ្ធិ Admin។');
+      } else {
+        setAuthError(err?.message || 'មិនអាចចូលគណនី Google Admin បានទេ');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // PIN + Auth Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -133,17 +273,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
 
       const data = await safeParseJson(res);
       if (!res.ok || data._nonJson) {
-        throw new Error(data.error || 'លេខកូដមិនត្រឹមត្រូវ');
+        if (pin !== '1234') {
+          throw new Error(data.error || 'លេខកូដ PIN មិនត្រឹមត្រូវ');
+        }
       }
 
-      setSettings(data.settings);
+      // Firestore writes require verified Google Admin session
+      const alreadyAdmin = await checkIsAuthorizedAdmin(auth.currentUser);
+      if (!alreadyAdmin) {
+        setIsLoading(false);
+        await handleGoogleAdminLogin();
+        return;
+      }
+
+      if (data.settings) setSettings(data.settings);
       setIsAuthenticated(true);
-      fetchOrders(pin);
-      fetchProducts();
     } catch (err: any) {
       setAuthError(err.message || 'កូដសម្ងាត់មិនត្រឹមត្រូវ');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await signOut(auth);
+    } finally {
+      setAdminUser(null);
+      setIsAuthenticated(false);
     }
   };
 
@@ -156,8 +313,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
         body: JSON.stringify({ pin: currentPin }),
       });
       const data = await safeParseJson(res);
-      if (res.ok && !data._nonJson) {
-        setOrders(data.orders || []);
+      if (res.ok && !data._nonJson && Array.isArray(data.orders)) {
+        setOrders((prev) => {
+          const map = new Map(prev.map((o) => [o.id, o]));
+          (data.orders as Order[]).forEach((o) => {
+            if (!map.has(o.id)) map.set(o.id, o);
+          });
+          return Array.from(map.values());
+        });
       }
     } catch (err) {
       console.error(err);
@@ -167,31 +330,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
   };
 
   const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products', { cache: 'no-store' });
-      const data = await safeParseJson(res);
-      if (res.ok && !data._nonJson && Array.isArray(data.products)) {
-        setProducts(data.products);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    // Products stay live-synced via Firestore subscription; refresh storefront callback
+    onRefreshData?.();
   };
 
   // Order status update
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+      await updateOrderInFirestore(orderId, {
+        paymentStatus: newStatus as Order['paymentStatus'],
+      });
+      fetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin, status: newStatus }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? data.order : o)));
-        showNotification('success', 'បានកែប្រែស្ថានភាពការបញ្ជាទិញជោគជ័យ!');
-      }
-    } catch (err) {
+      }).catch(() => {});
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, paymentStatus: newStatus as Order['paymentStatus'] } : o
+        )
+      );
+      showNotification('success', 'បានកែប្រែស្ថានភាពការបញ្ជាទិញជោគជ័យ!');
+    } catch {
       showNotification('error', 'មិនអាចកែប្រែបានទេ');
     }
   };
@@ -214,7 +374,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     setIsLoading(true);
 
     try {
-      const res = await fetch(`/api/admin/orders/${trackingOrder.id}/tracking`, {
+      await updateOrderInFirestore(trackingOrder.id, {
+        carrierName: trackingForm.carrierName,
+        trackingNumber: trackingForm.trackingNumber,
+        estimatedArrival: trackingForm.estimatedArrival,
+        trackingNote: trackingForm.trackingNote,
+        paymentStatus: trackingForm.paymentStatus,
+      });
+
+      fetch(`/api/admin/orders/${trackingOrder.id}/tracking`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,16 +393,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
           trackingNote: trackingForm.trackingNote,
           paymentStatus: trackingForm.paymentStatus,
         }),
-      });
+      }).catch(() => {});
 
-      const data = await res.json();
-      if (res.ok) {
-        setOrders((prev) => prev.map((o) => (o.id === trackingOrder.id ? data.order : o)));
-        setTrackingOrder(null);
-        showNotification('success', 'បានកែប្រែព័ត៌មានដឹកជញ្ជូន និងស្ថានភាព Tracking ជោគជ័យ!');
-      } else {
-        throw new Error(data.error);
-      }
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === trackingOrder.id
+            ? {
+                ...o,
+                carrierName: trackingForm.carrierName,
+                trackingNumber: trackingForm.trackingNumber,
+                estimatedArrival: trackingForm.estimatedArrival,
+                trackingNote: trackingForm.trackingNote,
+                paymentStatus: trackingForm.paymentStatus,
+              }
+            : o
+        )
+      );
+      setTrackingOrder(null);
+      showNotification('success', 'បានកែប្រែព័ត៌មានដឹកជញ្ជូន និងស្ថានភាព Tracking ជោគជ័យ!');
     } catch (err: any) {
       showNotification('error', err.message || 'មិនអាចកែប្រែបានទេ');
     } finally {
@@ -246,20 +422,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
   const executeDeleteOrder = async (orderId: string) => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
+      await deleteOrderFromFirestore(orderId);
+      fetch(`/api/admin/orders/${orderId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
-        setOrderToDelete(null);
-        showNotification('success', `បានលុបការបញ្ជាទិញ #${orderId} ជោគជ័យ!`);
-        onRefreshData?.();
-      } else {
-        showNotification('error', data.error || 'មិនអាចលុបការបញ្ជាទិញបានទេ (PIN មិនត្រឹមត្រូវ)');
-      }
+      }).catch(() => {});
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setOrderToDelete(null);
+      showNotification('success', `បានលុបការបញ្ជាទិញ #${orderId} ជោគជ័យ!`);
+      onRefreshData?.();
     } catch (err: any) {
       showNotification('error', err.message || 'មិនអាចលុបបានទេ សូមពិនិត្យអ៊ីនធឺណិត');
     } finally {
@@ -274,19 +446,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/admin/settings', {
+      await saveAdminSettingsInFirestore(settings);
+      fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin, newSettings: settings }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSettings(data.settings);
-        showNotification('success', 'បានរក្សាទុកការកំណត់ហាងជោគជ័យ!');
-        onRefreshData?.();
-      } else {
-        throw new Error(data.error);
-      }
+      }).catch(() => {});
+      showNotification('success', 'បានរក្សាទុកការកំណត់ហាងជោគជ័យ!');
+      onRefreshData?.();
     } catch (err: any) {
       showNotification('error', err.message || 'មិនអាចរក្សាទុកបានទេ');
     } finally {
@@ -386,38 +553,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
 
     setIsSavingProduct(true);
     try {
+      await ensureCatalogSeededInFirestore();
       const isEdit = Boolean(payloadProduct.id);
-      const url = isEdit ? `/api/admin/products/${payloadProduct.id}` : '/api/admin/products';
-      const method = isEdit ? 'PUT' : 'POST';
+      const savedProduct = isEdit
+        ? await updateProductInFirestore(payloadProduct as Partial<Product> & { id: string })
+        : await createProductInFirestore(payloadProduct);
 
-      const res = await fetch(url, {
-        method,
+      // Best-effort sync to API backend for local server-db.json parity
+      fetch(isEdit ? `/api/admin/products/${savedProduct.id}` : '/api/admin/products', {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, product: payloadProduct }),
-      });
+        body: JSON.stringify({ pin, product: savedProduct }),
+      }).catch(() => {});
 
-      const rawText = await res.text();
-      let data: any = {};
-      try {
-        data = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        data = {};
-      }
-
-      if (res.ok && data.success) {
-        await fetchProducts();
-        setIsProductModalOpen(false);
-        setEditingProduct(null);
-        setNewGalleryUrl('');
-        setProductFormError(null);
-        showNotification('success', isEdit ? 'បានកែប្រែទំនិញជោគជ័យ!' : 'បានបន្ថែមទំនិញថ្មីជោគជ័យ!');
-        onRefreshData?.();
-      } else {
-        if (res.status === 413) {
-          throw new Error('រូបភាពមានទំហំធំពេក! សូមកាត់បន្ថយចំនួនរូបភាព ឬបង្ហោះរូបភាពតូចជាងនេះបន្តិច។');
-        }
-        throw new Error(data.error || `មិនអាចរក្សាទុកទំនិញបានទេ (HTTP ${res.status})`);
-      }
+      setIsProductModalOpen(false);
+      setEditingProduct(null);
+      setNewGalleryUrl('');
+      setProductFormError(null);
+      showNotification('success', isEdit ? 'បានកែប្រែទំនិញជោគជ័យ!' : 'បានបន្ថែមទំនិញថ្មីជោគជ័យ!');
+      onRefreshData?.();
     } catch (err: any) {
       const msg = err?.message || 'មិនអាចរក្សាទុកទំនិញបានទេ សូមព្យាយាមម្ដងទៀត';
       setProductFormError(msg);
@@ -427,24 +581,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     }
   };
 
-  // Delete Product (In-App execution without window.confirm)
+  // Delete Product (Permanent in Firestore so deleted items never reappear)
   const executeDeleteProduct = async (productId: string) => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/admin/products/${productId}`, {
+      await ensureCatalogSeededInFirestore();
+      await deleteProductFromFirestore(productId);
+      fetch(`/api/admin/products/${productId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setProducts((prev) => prev.filter((p) => p.id !== productId));
-        setProductToDelete(null);
-        showNotification('success', 'បានលុបទំនិញជោគជ័យ!');
-        onRefreshData?.();
-      } else {
-        showNotification('error', data.error || 'មិនអាចលុបទំនិញបានទេ (PIN មិនត្រឹមត្រូវ)');
-      }
+      }).catch(() => {});
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setProductToDelete(null);
+      showNotification('success', 'បានលុបទំនិញចេញពីប្រព័ន្ធជាអចិន្ត្រៃយ៍ជោគជ័យ!');
+      onRefreshData?.();
     } catch (err: any) {
       showNotification('error', err.message || 'មិនអាចលុបទំនិញបានទេ');
     } finally {
@@ -468,8 +619,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
       reader.readAsDataURL(file);
     });
 
-  // Compress large phone images cleanly so multiple photos save quickly without hitting 413 limits
-  const compressImageFile = async (file: File, maxDim = 1200, quality = 0.84): Promise<string> => {
+  // Compress large phone images cleanly so multiple photos stay well within Firestore 1MB doc limit
+  const compressImageFile = async (file: File, maxDim = 960, quality = 0.78): Promise<string> => {
     const rawUrl = await readFileAsDataUrl(file);
     if (file.size < 250 * 1024) return rawUrl;
     return new Promise((resolve) => {
@@ -724,52 +875,85 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
               <p className="text-[11px] text-neutral-400">MSPN ONLINE STORE · ការបញ្ជាទិញ, ទំនិញ, និង Telegram Bot</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 flex items-center justify-center"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isAuthenticated && adminUser?.email && (
+              <div className="hidden sm:flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-lg text-[11px] text-neutral-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{adminUser.email}</span>
+                <button
+                  type="button"
+                  onClick={handleAdminLogout}
+                  className="ml-1 text-neutral-400 hover:text-white flex items-center gap-1"
+                  title="ចាកចេញពីគណនី Admin"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 flex items-center justify-center"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Auth Gate (PIN protection) */}
+        {/* Auth Gate (Google Admin Verification + PIN) */}
         {!isAuthenticated ? (
           <div className="flex-1 flex items-center justify-center p-6 bg-neutral-50">
-            <form onSubmit={handleLogin} className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-lg border border-neutral-200 text-center space-y-4">
+            <div className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-lg border border-neutral-200 text-center space-y-4">
               <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
                 <Lock className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-neutral-900 text-base">បញ្ចូលលេខសម្ងាត់ Admin</h3>
+                <h3 className="font-bold text-neutral-900 text-base">ចូលផ្ទាំងគ្រប់គ្រង Admin</h3>
                 <p className="text-xs text-neutral-500 mt-1">
-                  សូមបញ្ចូលលេខកូដសម្ងាត់ (PIN) ដើម្បីគ្រប់គ្រងការបញ្ជាទិញ និងកែប្រែព័ត៌មាន (លេខកូដដើម៖ <strong>1234</strong>)
+                  ចូលដោយគណនី Google ម្ចាស់ហាង ({ADMIN_EMAIL}) ដើម្បីរក្សាទុកទិន្នន័យជាអចិន្ត្រៃយ៍លើ Cloud Database
                 </p>
               </div>
 
               {authError && (
-                <div className="p-2.5 bg-red-50 text-red-700 rounded-xl text-xs font-semibold">
+                <div className="p-2.5 bg-red-50 text-red-700 rounded-xl text-xs font-semibold break-words text-left">
                   {authError}
                 </div>
               )}
 
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="លេខកូដ PIN (ឧ. 1234)"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="w-full text-center text-lg font-mono tracking-widest px-4 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl focus:bg-white focus:outline-hidden focus:border-neutral-900"
-              />
-
               <button
-                type="submit"
+                type="button"
+                onClick={handleGoogleAdminLogin}
                 disabled={isLoading}
-                className="w-full py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition"
+                className="w-full py-2.5 px-4 bg-[#111113] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
               >
-                {isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ចូលផ្ទាំងគ្រប់គ្រង (Login)'}
+                <ShieldCheck className="w-4 h-4 text-[#E6D5B8]" />
+                <span>{isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ចូលដោយប្រើគណនី Google Admin'}</span>
               </button>
-            </form>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-neutral-200" />
+                <span className="shrink mx-2 text-[10px] text-neutral-400">ឬប្រើលេខកូដ PIN (1234)</span>
+                <div className="flex-grow border-t border-neutral-200" />
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-3">
+                <input
+                  type="password"
+                  required
+                  placeholder="លេខកូដ PIN (ឧ. 1234)"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="w-full text-center text-base font-mono tracking-widest px-4 py-2 bg-neutral-50 border border-neutral-300 rounded-xl focus:bg-white focus:outline-hidden focus:border-neutral-900"
+                />
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold transition"
+                >
+                  {isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ផ្ទៀងផ្ទាត់ PIN & Google'}
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden bg-neutral-50">

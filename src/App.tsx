@@ -16,6 +16,7 @@ import { AbaPaymentSection } from './components/AbaPaymentSection';
 import { ProcessGuide } from './components/ProcessGuide';
 import { Footer } from './components/Footer';
 import { FloatingActions } from './components/FloatingActions';
+import { subscribeStoreProducts, subscribeStorePublicSettings } from './lib/storeFirestore';
 
 export default function App() {
   // Products and Settings from Backend
@@ -122,7 +123,9 @@ export default function App() {
     }
   };
 
-  // Fetch live products and settings
+  const [isFirestoreCatalogActive, setIsFirestoreCatalogActive] = useState(false);
+
+  // Fetch live products and settings (Firestore is authoritative once initialized)
   const refreshStoreData = async () => {
     try {
       const [prodRes, setRes] = await Promise.all([
@@ -130,7 +133,7 @@ export default function App() {
         fetch('/api/settings', { cache: 'no-store' }),
       ]);
 
-      if (prodRes.ok) {
+      if (!isFirestoreCatalogActive && prodRes.ok) {
         const prodData = await prodRes.json();
         if (Array.isArray(prodData.products)) {
           setProductsList(prodData.products);
@@ -140,16 +143,32 @@ export default function App() {
       if (setRes.ok) {
         const setData = await setRes.json();
         if (setData.settings) {
-          setStoreSettings(setData.settings);
+          setStoreSettings((prev) => ({ ...setData.settings, ...prev }));
         }
       }
-    } catch (err) {
+    } catch {
       console.log('Using local fallback product dataset');
     }
   };
 
   useEffect(() => {
     refreshStoreData();
+
+    const unsubProducts = subscribeStoreProducts((liveProducts, initialized) => {
+      setIsFirestoreCatalogActive(initialized);
+      if (initialized) {
+        setProductsList(liveProducts);
+      }
+    });
+
+    const unsubSettings = subscribeStorePublicSettings((publicSettings) => {
+      setStoreSettings((prev) => ({ ...prev, ...publicSettings }));
+    });
+
+    return () => {
+      unsubProducts();
+      unsubSettings();
+    };
   }, []);
 
   const showToast = (msg: string) => {

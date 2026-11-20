@@ -1,0 +1,262 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Catalog product sold in MSPN ONLINE STORE with multi-image gallery and color variants.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique product identifier",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "description": "Store SKU code",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "nameKh": {
+          "type": "string",
+          "description": "Khmer product title",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "nameEn": {
+          "type": "string",
+          "description": "English product title",
+          "maxLength": 300
+        },
+        "category": {
+          "type": "string",
+          "description": "Category slug",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "categoryKh": {
+          "type": "string",
+          "description": "Khmer category display name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "priceUsd": {
+          "type": "number",
+          "description": "Selling price in USD"
+        },
+        "originalPriceUsd": {
+          "type": "number",
+          "description": "Original comparison price in USD"
+        },
+        "image": {
+          "type": "string",
+          "description": "Primary product image URL or compressed data URL",
+          "minLength": 1,
+          "maxLength": 600000
+        },
+        "images": {
+          "type": "array",
+          "description": "Gallery image URLs or compressed data URLs"
+        },
+        "sourceUrl": {
+          "type": "string",
+          "description": "Source marketplace URL (Taobao / Shihuo / Wegou)",
+          "maxLength": 1500
+        },
+        "badge": {
+          "type": "string",
+          "description": "Short promotional badge text",
+          "maxLength": 80
+        },
+        "sizes": {
+          "type": "array",
+          "description": "Available sizes"
+        },
+        "colors": {
+          "type": "array",
+          "description": "Available color options with optional image links"
+        },
+        "descriptionKh": {
+          "type": "string",
+          "description": "Khmer product description",
+          "maxLength": 4000
+        },
+        "rating": {
+          "type": "number",
+          "description": "Product star rating"
+        },
+        "reviewCount": {
+          "type": "number",
+          "description": "Review count"
+        },
+        "sortOrder": {
+          "type": "number",
+          "description": "Ordering timestamp or priority"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "nameKh",
+        "nameEn",
+        "category",
+        "categoryKh",
+        "priceUsd",
+        "image",
+        "sizes",
+        "colors",
+        "descriptionKh",
+        "rating",
+        "reviewCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StorePublicSettings": {
+      "title": "StorePublicSettings",
+      "description": "Public storefront configuration, payment account display info, and catalog seed state.",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "taglineKh": { "type": "string", "maxLength": 300 },
+        "bannerText": { "type": "string", "maxLength": 500 },
+        "waitDays": { "type": "string", "maxLength": 80 },
+        "ownerName": { "type": "string", "maxLength": 120 },
+        "usdAccount": { "type": "string", "maxLength": 64 },
+        "khrAccount": { "type": "string", "maxLength": 64 },
+        "telegramHandle": { "type": "string", "maxLength": 80 },
+        "phone1": { "type": "string", "maxLength": 40 },
+        "phone2": { "type": "string", "maxLength": 40 },
+        "deliveryNoticeKh": { "type": "string", "maxLength": 300 },
+        "exchangeRate": { "type": "number" },
+        "catalogInitialized": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "storeName",
+        "taglineKh",
+        "bannerText",
+        "waitDays",
+        "ownerName",
+        "usdAccount",
+        "khrAccount",
+        "telegramHandle",
+        "phone1",
+        "phone2",
+        "deliveryNoticeKh",
+        "exchangeRate",
+        "catalogInitialized",
+        "updatedAt"
+      ]
+    },
+    "AdminConfig": {
+      "title": "AdminConfig",
+      "description": "Private admin-only configuration including Telegram Bot credentials and Admin PIN.",
+      "type": "object",
+      "properties": {
+        "telegramBotToken": { "type": "string", "maxLength": 200 },
+        "telegramChatId": { "type": "string", "maxLength": 80 },
+        "adminPin": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["telegramBotToken", "telegramChatId", "adminPin", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer pre-order document containing shipping PII, line items, and shipment tracking status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customerUid": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "customerPhone": { "type": "string", "minLength": 6, "maxLength": 40 },
+        "customerAddress": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "customerTelegram": { "type": "string", "maxLength": 100 },
+        "customerNote": { "type": "string", "maxLength": 500 },
+        "items": { "type": "array" },
+        "totalUsd": { "type": "number" },
+        "totalKhr": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["aba_khqr", "deposit_aba"] },
+        "paymentSlipUrl": { "type": "string", "maxLength": 650000 },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["pending", "verified", "china_transit", "arrived_phnom_penh", "delivered", "cancelled"]
+        },
+        "telegramNotificationStatus": {
+          "type": "string",
+          "enum": ["sent", "failed", "not_configured"]
+        },
+        "telegramError": { "type": "string", "maxLength": 300 },
+        "trackingNumber": { "type": "string", "maxLength": 120 },
+        "carrierName": { "type": "string", "maxLength": 120 },
+        "estimatedArrival": { "type": "string", "maxLength": 120 },
+        "trackingNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "customerName",
+        "customerPhone",
+        "customerAddress",
+        "items",
+        "totalUsd",
+        "totalKhr",
+        "paymentMethod",
+        "paymentStatus",
+        "telegramNotificationStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized store administrator entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Publicly readable product catalog managed exclusively by store administrators."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/StorePublicSettings" },
+      "description": "Public storefront configuration document at /settings/store."
+    },
+    "/adminConfig/{configId}": {
+      "schema": { "$ref": "#/entities/AdminConfig" },
+      "description": "Private Telegram bot token and admin PIN settings at /adminConfig/telegram, strictly admin-only."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders with PII protected so only admins or the authenticated customer owner can read/list."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role directory."
+    }
+  }
+}

@@ -1,0 +1,269 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'zonottp@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+        'id', 'code', 'nameKh', 'nameEn', 'category', 'categoryKh',
+        'priceUsd', 'image', 'sizes', 'colors', 'descriptionKh',
+        'rating', 'reviewCount', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'code', 'nameKh', 'nameEn', 'category', 'categoryKh',
+        'priceUsd', 'originalPriceUsd', 'image', 'images', 'sourceUrl',
+        'badge', 'sizes', 'colors', 'descriptionKh', 'rating', 'reviewCount',
+        'sortOrder', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      data.code is string && data.code.size() >= 1 && data.code.size() <= 64 &&
+      data.nameKh is string && data.nameKh.size() >= 1 && data.nameKh.size() <= 300 &&
+      data.nameEn is string && data.nameEn.size() <= 300 &&
+      data.category is string && data.category.size() >= 1 && data.category.size() <= 64 &&
+      data.categoryKh is string && data.categoryKh.size() >= 1 && data.categoryKh.size() <= 100 &&
+      data.priceUsd is number && data.priceUsd >= 0 && data.priceUsd <= 100000 &&
+      (!('originalPriceUsd' in data) || (data.originalPriceUsd is number && data.originalPriceUsd >= 0 && data.originalPriceUsd <= 100000)) &&
+      data.image is string && data.image.size() >= 1 && data.image.size() <= 600000 &&
+      (!('images' in data) || (
+        data.images is list && data.images.size() <= 12 &&
+        (data.images.size() == 0 || (data.images[0] is string && data.images[0].size() <= 600000))
+      )) &&
+      (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() <= 1500)) &&
+      (!('badge' in data) || (data.badge is string && data.badge.size() <= 80)) &&
+      data.sizes is list && data.sizes.size() >= 1 && data.sizes.size() <= 24 &&
+      data.sizes[0] is string && data.sizes[0].size() <= 80 &&
+      data.colors is list && data.colors.size() <= 20 &&
+      (data.colors.size() == 0 || data.colors[0] is map) &&
+      data.descriptionKh is string && data.descriptionKh.size() <= 4000 &&
+      data.rating is number && data.rating >= 0 && data.rating <= 5 &&
+      data.reviewCount is number && data.reviewCount >= 0 && data.reviewCount <= 1000000 &&
+      (!('sortOrder' in data) || data.sortOrder is number) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidStorePublicSettings(data) {
+      return data.keys().hasAll([
+        'storeName', 'taglineKh', 'bannerText', 'waitDays', 'ownerName',
+        'usdAccount', 'khrAccount', 'telegramHandle', 'phone1', 'phone2',
+        'deliveryNoticeKh', 'exchangeRate', 'catalogInitialized', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'storeName', 'taglineKh', 'bannerText', 'waitDays', 'ownerName',
+        'usdAccount', 'khrAccount', 'telegramHandle', 'phone1', 'phone2',
+        'deliveryNoticeKh', 'exchangeRate', 'catalogInitialized', 'updatedAt'
+      ]) &&
+      data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 120 &&
+      data.taglineKh is string && data.taglineKh.size() <= 300 &&
+      data.bannerText is string && data.bannerText.size() <= 500 &&
+      data.waitDays is string && data.waitDays.size() <= 80 &&
+      data.ownerName is string && data.ownerName.size() <= 120 &&
+      data.usdAccount is string && data.usdAccount.size() <= 64 &&
+      data.khrAccount is string && data.khrAccount.size() <= 64 &&
+      data.telegramHandle is string && data.telegramHandle.size() <= 80 &&
+      data.phone1 is string && data.phone1.size() <= 40 &&
+      data.phone2 is string && data.phone2.size() <= 40 &&
+      data.deliveryNoticeKh is string && data.deliveryNoticeKh.size() <= 300 &&
+      data.exchangeRate is number && data.exchangeRate > 0 && data.exchangeRate <= 100000 &&
+      data.catalogInitialized is bool &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidAdminConfig(data) {
+      return data.keys().hasAll(['telegramBotToken', 'telegramChatId', 'adminPin', 'updatedAt']) &&
+      data.keys().hasOnly(['telegramBotToken', 'telegramChatId', 'adminPin', 'updatedAt']) &&
+      data.telegramBotToken is string && data.telegramBotToken.size() <= 200 &&
+      data.telegramChatId is string && data.telegramChatId.size() <= 80 &&
+      data.adminPin is string && data.adminPin.size() >= 4 && data.adminPin.size() <= 32 &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+        'id', 'customerName', 'customerPhone', 'customerAddress',
+        'items', 'totalUsd', 'totalKhr', 'paymentMethod',
+        'paymentStatus', 'telegramNotificationStatus', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'customerUid', 'customerName', 'customerPhone', 'customerAddress',
+        'customerTelegram', 'customerNote', 'items', 'totalUsd', 'totalKhr',
+        'paymentMethod', 'paymentSlipUrl', 'paymentStatus',
+        'telegramNotificationStatus', 'telegramError',
+        'trackingNumber', 'carrierName', 'estimatedArrival', 'trackingNote',
+        'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      (!('customerUid' in data) || (data.customerUid is string && data.customerUid.size() <= 128)) &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+      data.customerPhone is string && data.customerPhone.size() >= 6 && data.customerPhone.size() <= 40 &&
+      data.customerAddress is string && data.customerAddress.size() >= 1 && data.customerAddress.size() <= 400 &&
+      (!('customerTelegram' in data) || (data.customerTelegram is string && data.customerTelegram.size() <= 100)) &&
+      (!('customerNote' in data) || (data.customerNote is string && data.customerNote.size() <= 500)) &&
+      data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+      data.items[0] is map &&
+      data.totalUsd is number && data.totalUsd >= 0 && data.totalUsd <= 1000000 &&
+      data.totalKhr is number && data.totalKhr >= 0 && data.totalKhr <= 5000000000 &&
+      data.paymentMethod in ['aba_khqr', 'deposit_aba'] &&
+      (!('paymentSlipUrl' in data) || (data.paymentSlipUrl is string && data.paymentSlipUrl.size() <= 650000)) &&
+      data.paymentStatus in ['pending', 'verified', 'china_transit', 'arrived_phnom_penh', 'delivered', 'cancelled'] &&
+      data.telegramNotificationStatus in ['sent', 'failed', 'not_configured'] &&
+      (!('telegramError' in data) || (data.telegramError is string && data.telegramError.size() <= 300)) &&
+      (!('trackingNumber' in data) || (data.trackingNumber is string && data.trackingNumber.size() <= 120)) &&
+      (!('carrierName' in data) || (data.carrierName is string && data.carrierName.size() <= 120)) &&
+      (!('estimatedArrival' in data) || (data.estimatedArrival is string && data.estimatedArrival.size() <= 120)) &&
+      (!('trackingNote' in data) || (data.trackingNote is string && data.trackingNote.size() <= 500)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+      isValidId(data.uid) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+      data.createdAt is timestamp;
+    }
+
+    // 1. Public Store Catalog (Admin write-only)
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      allow create: if isAdmin() &&
+        isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().id == productId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'code', 'nameKh', 'nameEn', 'category', 'categoryKh',
+          'priceUsd', 'originalPriceUsd', 'image', 'images', 'sourceUrl',
+          'badge', 'sizes', 'colors', 'descriptionKh', 'rating', 'reviewCount',
+          'sortOrder', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // 2. Public Storefront Settings (/settings/store)
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && settingId == 'store';
+      allow create: if isAdmin() &&
+        isValidId(settingId) &&
+        settingId == 'store' &&
+        isValidStorePublicSettings(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(settingId) &&
+        settingId == 'store' &&
+        isValidStorePublicSettings(incoming()) &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'storeName', 'taglineKh', 'bannerText', 'waitDays', 'ownerName',
+          'usdAccount', 'khrAccount', 'telegramHandle', 'phone1', 'phone2',
+          'deliveryNoticeKh', 'exchangeRate', 'catalogInitialized', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // 3. Private Admin Config (/adminConfig/telegram)
+    match /adminConfig/{configId} {
+      allow get: if isAdmin() && isValidId(configId);
+      allow create: if isAdmin() &&
+        isValidId(configId) &&
+        isValidAdminConfig(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(configId) &&
+        isValidAdminConfig(incoming()) &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'telegramBotToken', 'telegramChatId', 'adminPin', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // 4. Orders Collection (PII strictly restricted to Admins or matching authenticated customerUid)
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && (
+        isAdmin() ||
+        (isVerifiedUser() && existing().customerUid == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isVerifiedUser() && resource.data.customerUid == request.auth.uid);
+      allow create: if isValidId(orderId) &&
+        isValidOrder(incoming()) &&
+        incoming().id == orderId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().paymentStatus in ['pending', 'verified'] &&
+        !('trackingNumber' in incoming()) &&
+        !('carrierName' in incoming()) &&
+        !('estimatedArrival' in incoming()) &&
+        !('trackingNote' in incoming()) &&
+        (
+          isAdmin() ||
+          (isVerifiedUser() && incoming().customerUid == request.auth.uid)
+        );
+      allow update: if isAdmin() &&
+        isValidId(orderId) &&
+        isValidOrder(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().paymentStatus != 'delivered' || isAdmin()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'paymentStatus', 'telegramNotificationStatus', 'telegramError',
+          'trackingNumber', 'carrierName', 'estimatedArrival', 'trackingNote',
+          'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(orderId);
+    }
+
+    // 5. Admins Directory
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isAdmin() || (isVerifiedUser() && request.auth.uid == uid));
+      allow list: if isAdmin();
+      allow create: if isAdmin() &&
+        isValidId(uid) &&
+        isValidAdminUser(incoming()) &&
+        incoming().uid == uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if isAdmin() && isValidId(uid);
+    }
+  }
+}
