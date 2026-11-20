@@ -1,0 +1,6 @@
+{
+  "name": "MSPN ONINE STORE - Pre-Order Fashion & Accessories",
+  "description": "ហាងទំនិញ Pre-Order ពីប្រទេសចិន គុណភាពខ្ពស់ តម្លៃសមរម្យ។ ខោអាវ ស្បែកជើង ខ្សែក្រវ៉ាត់ នាឡិកា ស្កេនទូទាត់ ABA KHQR និងកម្ម៉ង់តាម Telegram ភ្លាមៗ។",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
