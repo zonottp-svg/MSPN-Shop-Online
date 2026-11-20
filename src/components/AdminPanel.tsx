@@ -32,6 +32,7 @@ import {
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, ADMIN_EMAIL, db } from '../lib/firebase';
+import firebaseConfig from '../../firebase-applet-config.json';
 import {
   ensureCatalogSeededInFirestore,
   subscribeStoreProducts,
@@ -58,6 +59,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [unauthorizedHost, setUnauthorizedHost] = useState<string | null>(null);
+  const [copiedHost, setCopiedHost] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'settings'>('orders');
@@ -170,6 +173,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
       setAdminUser(user);
       setIsAuthenticated(true);
       setAuthError('');
+      setUnauthorizedHost(null);
 
       // Subscribe immediately to Firestore live products & orders
       unsubProducts?.();
@@ -229,13 +233,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
   const handleGoogleAdminLogin = async () => {
     setIsLoading(true);
     setAuthError('');
+    setUnauthorizedHost(null);
     try {
       const cred = await signInWithPopup(auth, googleProvider);
       const authorized = await checkIsAuthorizedAdmin(cred.user);
       if (!authorized) {
         await signOut(auth);
         throw new Error(
-          `គណនី Google "${cred.user.email || ''}" មិនមានសិទ្ធិជា Admin ទេ! សូមចូលដោយប្រើគណនីម្ចាស់ហាង (${ADMIN_EMAIL})។`
+          `គណនី "${cred.user.email || ''}" មិនមែនជាម្ចាស់ហាងទេ។ សូមចូលដោយប្រើគណនី ${ADMIN_EMAIL} ។`
         );
       }
       setAdminUser(cred.user);
@@ -244,12 +249,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     } catch (err: any) {
       const code = err?.code || '';
       if (code === 'auth/unauthorized-domain') {
-        const host = typeof window !== 'undefined' ? window.location.hostname : 'domain នេះ';
-        setAuthError(
-          `Domain "${host}" មិនទាន់បានបន្ថែមក្នុង Firebase Authorized Domains ទេ។ សូមបន្ថែម "${host}" ក្នុង Firebase Console → Authentication → Settings → Authorized domains ជាមុនសិន។`
-        );
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        setUnauthorizedHost(host || 'domain-នេះ');
+        setAuthError('');
       } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        setAuthError('អ្នកបានបិទផ្ទាំងចូលគណនី Google។ សូមចុចម្ដងទៀតដើម្បីបញ្ជាក់សិទ្ធិ Admin។');
+        setAuthError('អ្នកបានបិទផ្ទាំង Google។ សូមចុចប៊ូតុងខាងក្រោមម្ដងទៀត។');
       } else {
         setAuthError(err?.message || 'មិនអាចចូលគណនី Google Admin បានទេ');
       }
@@ -258,40 +262,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     }
   };
 
-  // PIN + Auth Handler
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setAuthError('');
-
+  const handleCopyHost = async () => {
+    if (!unauthorizedHost) return;
     try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
-      });
-
-      const data = await safeParseJson(res);
-      if (!res.ok || data._nonJson) {
-        if (pin !== '1234') {
-          throw new Error(data.error || 'លេខកូដ PIN មិនត្រឹមត្រូវ');
-        }
-      }
-
-      // Firestore writes require verified Google Admin session
-      const alreadyAdmin = await checkIsAuthorizedAdmin(auth.currentUser);
-      if (!alreadyAdmin) {
-        setIsLoading(false);
-        await handleGoogleAdminLogin();
-        return;
-      }
-
-      if (data.settings) setSettings(data.settings);
-      setIsAuthenticated(true);
-    } catch (err: any) {
-      setAuthError(err.message || 'កូដសម្ងាត់មិនត្រឹមត្រូវ');
-    } finally {
-      setIsLoading(false);
+      await navigator.clipboard.writeText(unauthorizedHost);
+      setCopiedHost(true);
+      setTimeout(() => setCopiedHost(false), 2000);
+    } catch {
+      // Fallback ignored if clipboard blocked
     }
   };
 
@@ -865,17 +843,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}
-        <div className="px-6 py-4 bg-neutral-900 text-white flex items-center justify-between border-b border-neutral-800">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center font-bold text-xs">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-neutral-900 text-white flex items-center justify-between border-b border-neutral-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center font-bold text-xs shrink-0">
               ADM
             </div>
-            <div>
-              <h2 className="font-bold text-base leading-tight">ផ្ទាំងគ្រប់គ្រងហាង (Admin Dashboard)</h2>
-              <p className="text-[11px] text-neutral-400">MSPN ONLINE STORE · ការបញ្ជាទិញ, ទំនិញ, និង Telegram Bot</p>
+            <div className="min-w-0">
+              <h2 className="font-bold text-sm sm:text-base leading-tight truncate">ផ្ទាំងគ្រប់គ្រងហាង (Admin)</h2>
+              <p className="text-[11px] text-neutral-400 truncate">MSPN ONLINE STORE · ការបញ្ជាទិញ &amp; ទំនិញ</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isAuthenticated && adminUser?.email && (
               <div className="hidden sm:flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-lg text-[11px] text-neutral-300">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -899,23 +877,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
           </div>
         </div>
 
-        {/* Auth Gate (Google Admin Verification + PIN) */}
+        {/* Auth Gate (Clean Single-Step Google Admin Sign-In) */}
         {!isAuthenticated ? (
-          <div className="flex-1 flex items-center justify-center p-6 bg-neutral-50">
-            <div className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-lg border border-neutral-200 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
+          <div className="flex-1 flex items-center justify-center p-5 sm:p-6 bg-neutral-50 overflow-y-auto">
+            <div className="max-w-sm w-full bg-white p-6 rounded-2xl shadow-lg border border-neutral-200 text-center space-y-5">
+              <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-900 flex items-center justify-center mx-auto">
+                <Lock className="w-5 h-5" />
               </div>
+
               <div>
                 <h3 className="font-bold text-neutral-900 text-base">ចូលផ្ទាំងគ្រប់គ្រង Admin</h3>
                 <p className="text-xs text-neutral-500 mt-1">
-                  ចូលដោយគណនី Google ម្ចាស់ហាង ({ADMIN_EMAIL}) ដើម្បីរក្សាទុកទិន្នន័យជាអចិន្ត្រៃយ៍លើ Cloud Database
+                  សម្រាប់គណនីម្ចាស់ហាង <span className="font-mono text-neutral-700">{ADMIN_EMAIL}</span>
                 </p>
               </div>
 
               {authError && (
-                <div className="p-2.5 bg-red-50 text-red-700 rounded-xl text-xs font-semibold break-words text-left">
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium text-left">
                   {authError}
+                </div>
+              )}
+
+              {unauthorizedHost && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-left space-y-2.5">
+                  <p className="text-xs font-bold text-amber-900">
+                    ត្រូវអនុញ្ញាត Domain នេះក្នុង Firebase ជាមុន (ធ្វើតែម្ដងគត់)៖
+                  </p>
+
+                  <div className="flex items-center justify-between gap-2 bg-white border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    <span className="text-[11px] font-mono text-neutral-800 truncate">{unauthorizedHost}</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyHost}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-900 hover:bg-neutral-800 text-white rounded-md text-[10px] font-bold shrink-0"
+                    >
+                      {copiedHost ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedHost ? 'បានចម្លង' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Authentication → Settings → Authorized domains → Add domain
+                  </p>
+
+                  <a
+                    href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>បើក Firebase បន្ថែម Domain</span>
+                  </a>
                 </div>
               )}
 
@@ -923,47 +936,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
                 type="button"
                 onClick={handleGoogleAdminLogin}
                 disabled={isLoading}
-                className="w-full py-2.5 px-4 bg-[#111113] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
+                className="w-full py-3 px-4 bg-[#111113] hover:bg-neutral-800 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
               >
-                <ShieldCheck className="w-4 h-4 text-[#E6D5B8]" />
-                <span>{isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ចូលដោយប្រើគណនី Google Admin'}</span>
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#E6D5B8]" />
+                ) : (
+                  <ShieldCheck className="w-4 h-4 text-[#E6D5B8]" />
+                )}
+                <span>{isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ចូលដោយប្រើគណនី Google'}</span>
               </button>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-neutral-200" />
-                <span className="shrink mx-2 text-[10px] text-neutral-400">ឬប្រើលេខកូដ PIN (1234)</span>
-                <div className="flex-grow border-t border-neutral-200" />
-              </div>
-
-              <form onSubmit={handleLogin} className="space-y-3">
-                <input
-                  type="password"
-                  required
-                  placeholder="លេខកូដ PIN (ឧ. 1234)"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  className="w-full text-center text-base font-mono tracking-widest px-4 py-2 bg-neutral-50 border border-neutral-300 rounded-xl focus:bg-white focus:outline-hidden focus:border-neutral-900"
-                />
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold transition"
-                >
-                  {isLoading ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'ផ្ទៀងផ្ទាត់ PIN & Google'}
-                </button>
-              </form>
             </div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden bg-neutral-50">
             {/* Navigation Tabs */}
-            <div className="px-6 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            <div className="px-4 sm:px-6 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
                   onClick={() => setActiveTab('orders')}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap shrink-0 ${
                     activeTab === 'orders'
                       ? 'bg-neutral-900 text-white shadow-xs'
                       : 'text-neutral-600 hover:bg-neutral-100'
@@ -976,7 +968,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
                 <button
                   type="button"
                   onClick={() => setActiveTab('products')}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap shrink-0 ${
                     activeTab === 'products'
                       ? 'bg-neutral-900 text-white shadow-xs'
                       : 'text-neutral-600 hover:bg-neutral-100'
@@ -989,14 +981,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
                 <button
                   type="button"
                   onClick={() => setActiveTab('settings')}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap shrink-0 ${
                     activeTab === 'settings'
                       ? 'bg-neutral-900 text-white shadow-xs'
                       : 'text-neutral-600 hover:bg-neutral-100'
                   }`}
                 >
                   <Settings className="w-4 h-4" />
-                  <span>ការកំណត់ & Telegram Bot</span>
+                  <span>ការកំណត់ &amp; Bot</span>
                 </button>
               </div>
 
@@ -1007,7 +999,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
                   fetchProducts();
                   showNotification('success', 'បានទាញយកទិន្នន័យថ្មីជោគជ័យ');
                 }}
-                className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl"
+                className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl shrink-0"
                 title="ទាញយកទិន្នន័យឡើងវិញ (Refresh)"
               >
                 <RefreshCw className="w-4 h-4" />
