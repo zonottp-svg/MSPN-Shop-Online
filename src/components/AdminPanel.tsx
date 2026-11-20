@@ -102,6 +102,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
     setTimeout(() => setFeedbackMsg(null), 3500);
   };
 
+  const safeParseJson = async (res: Response) => {
+    const rawText = await res.text();
+    if (!rawText) return {};
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      return {
+        _nonJson: true,
+        error:
+          res.status === 404
+            ? 'រកមិនឃើញសេវា API របស់ហាងទេ (404)។ សូមពិនិត្យការដំឡើង Backend /api លើ Server ម្ដងទៀត។'
+            : `ម៉ាស៊ីនមេត្រឡប់ទិន្នន័យមិនត្រឹមត្រូវ (HTTP ${res.status})។ សូមព្យាយាមម្ដងទៀត។`,
+      };
+    }
+  };
+
   // Auth Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +131,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
         body: JSON.stringify({ pin }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await safeParseJson(res);
+      if (!res.ok || data._nonJson) {
         throw new Error(data.error || 'លេខកូដមិនត្រឹមត្រូវ');
       }
 
@@ -139,8 +155,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin: currentPin }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      const data = await safeParseJson(res);
+      if (res.ok && !data._nonJson) {
         setOrders(data.orders || []);
       }
     } catch (err) {
@@ -153,8 +169,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/products', { cache: 'no-store' });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.products)) {
+      const data = await safeParseJson(res);
+      if (res.ok && !data._nonJson && Array.isArray(data.products)) {
         setProducts(data.products);
       }
     } catch (err) {
@@ -606,8 +622,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await safeParseJson(res);
+      if (!res.ok || data._nonJson || !data.success) {
         throw new Error(data.error || 'មិនអាចទាញទិន្នន័យពី Taobao បានទេ');
       }
 
@@ -1047,7 +1063,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onRefre
                       resetTaobaoImportState();
                       setNewGalleryUrl('');
                       setIsCustomCategoryMode(false);
-                      const defaultImg = '/src/assets/images/product_tshirt_streetwear_1794414887323.jpg';
+                      const defaultImg = '/assets/images/product_tshirt_streetwear_1794414887323.jpg';
                       setEditingProduct({
                         code: `MSPN-${Date.now().toString().slice(-4)}`,
                         nameKh: '',

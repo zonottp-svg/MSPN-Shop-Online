@@ -26,7 +26,7 @@
       "categoryKh": "ខោអាវ",
       "priceUsd": 12,
       "originalPriceUsd": 16,
-      "image": "/src/assets/images/product_tshirt_streetwear_1794414887323.jpg",
+      "image": "/assets/images/product_tshirt_streetwear_1794414887323.jpg",
       "badge": "ពេញនិយមខ្លាំង",
       "sizes": [
         "M (45-55kg)",
@@ -38,26 +38,26 @@
         {
           "name": "Washed Black",
           "hex": "#262626",
-          "image": "/src/assets/images/product_tshirt_streetwear_1794414887323.jpg"
+          "image": "/assets/images/product_tshirt_streetwear_1794414887323.jpg"
         },
         {
           "name": "Chalk White",
           "hex": "#f5f5f4",
-          "image": "/src/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
+          "image": "/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
         },
         {
           "name": "Sage Olive",
           "hex": "#606c5d",
-          "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+          "image": "/assets/images/hero_fashion_collection_1794414887257.jpg"
         }
       ],
       "descriptionKh": "សាច់ក្រណាត់កប្បាស Cotton 100% កម្រាស់ 260g ទន់ត្រជាក់ មិនយារ មិនចេញពណ៌ ម៉ូដទាន់សម័យបែប Streetwear Unisex ពាក់បានទាំងប្រុសទាំងស្រី។",
       "rating": 4.9,
       "reviewCount": 38,
       "images": [
-        "/src/assets/images/product_tshirt_streetwear_1794414887323.jpg",
-        "/src/assets/images/product_tshirt_chalk_white_1794831962175.jpg",
-        "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+        "/assets/images/product_tshirt_streetwear_1794414887323.jpg",
+        "/assets/images/product_tshirt_chalk_white_1794831962175.jpg",
+        "/assets/images/hero_fashion_collection_1794414887257.jpg"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "categoryKh": "ស្បែកជើង",
       "priceUsd": 25,
       "originalPriceUsd": 32,
-      "image": "/src/assets/images/product_sneakers_sport_1794414888593.jpg",
+      "image": "/assets/images/product_sneakers_sport_1794414888593.jpg",
       "badge": "លក់ដាច់បំផុត",
       "sizes": [
         "39",
@@ -83,20 +83,20 @@
         {
           "name": "Grey / Chalk White",
           "hex": "#e2e8f0",
-          "image": "/src/assets/images/product_sneakers_sport_1794414888593.jpg"
+          "image": "/assets/images/product_sneakers_sport_1794414888593.jpg"
         },
         {
           "name": "Panda Black & White",
           "hex": "#1e293b",
-          "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+          "image": "/assets/images/hero_fashion_collection_1794414887257.jpg"
         }
       ],
       "descriptionKh": "បាតទន់ស្វិត បច្ចេកវិទ្យាខ្យល់ Cushion ដើររត់មិនឈឺជើង ទម្ងន់ស្រាល ងាយស្រួលពាក់ដើរលេង ធ្វើការ ឬហាត់ប្រាណ រចនាបថទាន់សម័យ។",
       "rating": 4.8,
       "reviewCount": 52,
       "images": [
-        "/src/assets/images/product_sneakers_sport_1794414888593.jpg",
-        "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+        "/assets/images/product_sneakers_sport_1794414888593.jpg",
+        "/assets/images/hero_fashion_collection_1794414887257.jpg"
       ]
     },
     {
@@ -108,7 +108,7 @@
       "categoryKh": "ខ្សែក្រវ៉ាត់",
       "priceUsd": 9.5,
       "originalPriceUsd": 14,
-      "image": "/src/assets/images/product_leather_belt_1794414888555.jpg",
+      "image": "/assets/images/product_leather_belt_1794414888555.jpg",
       "badge": "គុណភាពខ្ពស់",
       "sizes": [
         "110cm (ចង្កេះ 28-32)",
@@ -119,19 +119,19 @@
         {
           "name": "Rich Brown",
           "hex": "#4a2c1b",
-          "image": "/src/assets/images/product_leather_belt_1794414888555.jpg"
+          "image": "/assets/images/product_leather_belt_1794414888555.jpg"
         },
         {
           "name": "Classic Black",
           "hex": "#18181b",
-          "image": "/src/assets/images/product_leather_belt_1794414888555.jpg"
+          "image": "/assets/images/product_leather_belt_1794414888555.jpg"
         }
       ],
       "descriptionKh": "ស្បែកគោសុទ្ធគុណភាពល្អ ជាប់ធន់មិនងាយបាក់ ក្បាលដែក Brushed Titanium រឹងមាំ មិនរបក មិនច្រេះ ត្រូវនឹងខោខូវប៊យ និងខោសាច់ក្រណាត់ធ្វើការ។",
       "rating": 4.9,
       "reviewCount": 44,
       "images": [
-        "/src/assets/images/product_leather_belt_1794414888555.jpg"
+        "/assets/images/product_leather_belt_1794414888555.jpg"
       ]
     },
     {
@@ -143,7 +143,7 @@
       "categoryKh": "ខោអាវ",
       "priceUsd": 16,
       "originalPriceUsd": 22,
-      "image": "/src/assets/images/product_denim_jeans_1794414888591.jpg",
+      "image": "/assets/images/product_denim_jeans_1794414888591.jpg",
       "badge": "ពេញនិយម",
       "sizes": [
         "29",
@@ -157,20 +157,20 @@
         {
           "name": "Deep Indigo Blue",
           "hex": "#1e3a5f",
-          "image": "/src/assets/images/product_denim_jeans_1794414888591.jpg"
+          "image": "/assets/images/product_denim_jeans_1794414888591.jpg"
         },
         {
           "name": "Washed Light Blue",
           "hex": "#60a5fa",
-          "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+          "image": "/assets/images/hero_fashion_collection_1794414887257.jpg"
         }
       ],
       "descriptionKh": "សាច់ខូវប៊យក្រាស់ល្មម បត់ជើងស្រួល មានថ្នេរ Selvedge ក្រហមប្រណិត កាត់ដេរទម្រង់ជើងត្រង់ Straight Fit ពាក់ត្រូវរាង និងមើលទៅខ្ពស់។",
       "rating": 4.7,
       "reviewCount": 29,
       "images": [
-        "/src/assets/images/product_denim_jeans_1794414888591.jpg",
-        "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+        "/assets/images/product_denim_jeans_1794414888591.jpg",
+        "/assets/images/hero_fashion_collection_1794414887257.jpg"
       ]
     },
     {
@@ -182,7 +182,7 @@
       "categoryKh": "ខោអាវ",
       "priceUsd": 24,
       "originalPriceUsd": 30,
-      "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg",
+      "image": "/assets/images/hero_fashion_collection_1794414887257.jpg",
       "badge": "ម៉ូដថ្មី",
       "sizes": [
         "M (48-58kg)",
@@ -194,26 +194,26 @@
         {
           "name": "Military Olive",
           "hex": "#4b5320",
-          "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+          "image": "/assets/images/hero_fashion_collection_1794414887257.jpg"
         },
         {
           "name": "Matte Black",
           "hex": "#171717",
-          "image": "/src/assets/images/product_tshirt_streetwear_1794414887323.jpg"
+          "image": "/assets/images/product_tshirt_streetwear_1794414887323.jpg"
         },
         {
           "name": "Safari Khaki",
           "hex": "#c2b280",
-          "image": "/src/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
+          "image": "/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
         }
       ],
       "descriptionKh": "អាវក្រៅបែប Safari Tactical មានហោប៉ៅច្រើន ធន់នឹងការកកិត ការពារខ្យល់ និងកម្ដៅថ្ងៃ ម៉ូដយុវវ័យកំពុងពេញនិយមខ្លាំង។",
       "rating": 4.9,
       "reviewCount": 19,
       "images": [
-        "/src/assets/images/hero_fashion_collection_1794414887257.jpg",
-        "/src/assets/images/product_tshirt_streetwear_1794414887323.jpg",
-        "/src/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
+        "/assets/images/hero_fashion_collection_1794414887257.jpg",
+        "/assets/images/product_tshirt_streetwear_1794414887323.jpg",
+        "/assets/images/product_tshirt_chalk_white_1794831962175.jpg"
       ]
     },
     {
@@ -225,7 +225,7 @@
       "categoryKh": "ស្បែកជើង",
       "priceUsd": 26.5,
       "originalPriceUsd": 35,
-      "image": "/src/assets/images/product_sneakers_sport_1794414888593.jpg",
+      "image": "/assets/images/product_sneakers_sport_1794414888593.jpg",
       "badge": "ប្រណិត",
       "sizes": [
         "39",
@@ -239,7 +239,7 @@
         {
           "name": "Vintage White & Grey",
           "hex": "#d1d5db",
-          "image": "/src/assets/images/product_sneakers_sport_1794414888593.jpg"
+          "image": "/assets/images/product_sneakers_sport_1794414888593.jpg"
         },
         {
           "name": "Classic Black/White",
@@ -250,7 +250,7 @@
       "rating": 4.8,
       "reviewCount": 31,
       "images": [
-        "/src/assets/images/product_sneakers_sport_1794414888593.jpg"
+        "/assets/images/product_sneakers_sport_1794414888593.jpg"
       ]
     },
     {
@@ -262,7 +262,7 @@
       "categoryKh": "ខ្សែក្រវ៉ាត់",
       "priceUsd": 11,
       "originalPriceUsd": 15,
-      "image": "/src/assets/images/product_leather_belt_1794414888555.jpg",
+      "image": "/assets/images/product_leather_belt_1794414888555.jpg",
       "badge": "ងាយស្រួលប្រើ",
       "sizes": [
         "115cm (ចង្កេះ 28-34)",
@@ -283,7 +283,7 @@
       "rating": 4.9,
       "reviewCount": 27,
       "images": [
-        "/src/assets/images/product_leather_belt_1794414888555.jpg"
+        "/assets/images/product_leather_belt_1794414888555.jpg"
       ]
     },
     {
@@ -295,7 +295,7 @@
       "categoryKh": "គ្រឿងតុបតែង",
       "priceUsd": 8.5,
       "originalPriceUsd": 12,
-      "image": "/src/assets/images/hero_fashion_collection_1794414887257.jpg",
+      "image": "/assets/images/hero_fashion_collection_1794414887257.jpg",
       "badge": "ពេញនិយម",
       "sizes": [
         "Free Size (អាចសារ៉េបាន)"
@@ -318,7 +318,7 @@
       "rating": 4.7,
       "reviewCount": 22,
       "images": [
-        "/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+        "/assets/images/hero_fashion_collection_1794414887257.jpg"
       ]
     },
     {
@@ -330,10 +330,10 @@
       "categoryKh": "នាឡិកា",
       "priceUsd": 38,
       "originalPriceUsd": 49,
-      "image": "/src/assets/images/product_luxury_watch_1794831962141.jpg",
+      "image": "/assets/images/product_luxury_watch_1794831962141.jpg",
       "images": [
-        "/src/assets/images/product_luxury_watch_1794831962141.jpg",
-        "/src/assets/images/product_leather_belt_1794414888555.jpg"
+        "/assets/images/product_luxury_watch_1794831962141.jpg",
+        "/assets/images/product_leather_belt_1794414888555.jpg"
       ],
       "badge": "Luxury Edition",
       "sizes": [
@@ -343,12 +343,12 @@
         {
           "name": "Obsidian Gold & Steel",
           "hex": "#b8924a",
-          "image": "/src/assets/images/product_luxury_watch_1794831962141.jpg"
+          "image": "/assets/images/product_luxury_watch_1794831962141.jpg"
         },
         {
           "name": "Classic Espresso Strap",
           "hex": "#3e2723",
-          "image": "/src/assets/images/product_leather_belt_1794414888555.jpg"
+          "image": "/assets/images/product_leather_belt_1794414888555.jpg"
         }
       ],
       "descriptionKh": "នាឡិកាដៃរចនាបថ Luxury Minimalist តួដែកអ៊ីណុក Brushed 316L ការពារទឹក 5ATM កញ្ចក់ Sapphire មិនងាយឆ្កូត ពាក់ទៅធ្វើការ ឬចូលរួមកម្មវិធីយ៉ាងថ្លៃថ្នូរ។",

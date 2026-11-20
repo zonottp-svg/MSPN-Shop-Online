@@ -18,7 +18,7 @@ export const Hero: React.FC<HeroProps> = ({ onScrollToProducts, onOpenAbaModal, 
           <div className="lg:col-span-5 lg:order-2 relative">
             <div className="relative rounded-2xl overflow-hidden shadow-[0_18px_45px_rgba(17,17,19,0.12)] border border-stone-200 aspect-[16/10] sm:aspect-[4/3] lg:aspect-[4/5] group bg-[#111113]">
               <img
-                src="/src/assets/images/hero_fashion_collection_1794414887257.jpg"
+                src="/assets/images/hero_fashion_collection_1794414887257.jpg"
                 alt="MSPN ONLINE STORE Luxury Pre-Order Collection"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-center group-hover:scale-[1.03] transition-transform duration-700"
